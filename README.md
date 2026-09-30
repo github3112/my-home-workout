@@ -4,6 +4,8 @@ Home Workout is a modern Android fitness application built with Kotlin and Jetpa
 
 The app includes workout routines, custom workout creation, exercise guidance, progress tracking, and a lightweight meal/report dashboard. It is structured as a local-first Android app with Room persistence and Compose-based UI.
 
+For the Indonesian version, see [README-ID.md](README-ID.md).
+
 ## Features
 
 - Bodyweight workout plans
