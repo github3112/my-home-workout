@@ -35,16 +35,20 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.UserProgressEntity
 import com.example.ui.WorkoutViewModel
+import com.example.ui.components.ActivityCalendarView
+import com.example.ui.components.BadgesSection
 import com.example.ui.components.StreakWidgetView
 import com.example.ui.theme.FitnessCyan
 import com.example.ui.theme.FitnessGreen
@@ -65,6 +69,12 @@ fun ReportTab(
     val allHistory by viewModel.allProgress.collectAsState()
     val userWeight by viewModel.userWeightKg.collectAsState()
     val userHeight by viewModel.userHeightCm.collectAsState()
+
+    val badges by viewModel.badges.collectAsState()
+    val weeklyWorkouts by viewModel.weeklyWorkoutsCount.collectAsState()
+    val monthlyWorkouts by viewModel.monthlyWorkoutsCount.collectAsState()
+    val weeklyKcal by viewModel.weeklyCalories.collectAsState()
+    val monthlyKcal by viewModel.monthlyCalories.collectAsState()
 
     // Calculate BMI
     val heightInMeters = userHeight / 100f
@@ -99,7 +109,7 @@ fun ReportTab(
                     letterSpacing = 1.sp
                 )
                 Text(
-                    text = "Weekly goals, streaks and workout history",
+                    text = "Activities calendar, badges and workout history",
                     style = MaterialTheme.typography.bodySmall,
                     color = Color(0xFF94A3B8)
                 )
@@ -145,6 +155,24 @@ fun ReportTab(
                     modifier = Modifier.weight(1f)
                 )
             }
+        }
+
+        // CALENDAR OF ACTIVITIES
+        item {
+            ActivityCalendarView(
+                progressList = allHistory
+            )
+        }
+
+        // BADGES & ACHIEVEMENT NOTIFICATIONS
+        item {
+            BadgesSection(
+                badges = badges,
+                weeklyWorkoutsCount = weeklyWorkouts,
+                monthlyWorkoutsCount = monthlyWorkouts,
+                weeklyCalories = weeklyKcal,
+                monthlyCalories = monthlyKcal
+            )
         }
 
         // Body Metrics & BMI Calculator Card
@@ -249,7 +277,7 @@ fun ReportTab(
                                 text = "${String.format(Locale.US, "%.1f", userWeight)} kg",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = WorkoutOrange
+                                color = Color.White
                             )
 
                             IconButton(
@@ -274,7 +302,7 @@ fun ReportTab(
             }
         }
 
-        // Recent Workout History
+        // Workout Log History
         item {
             Text(
                 text = "WORKOUT HISTORY (${allHistory.size})",
@@ -287,9 +315,9 @@ fun ReportTab(
 
         if (allHistory.isEmpty()) {
             item {
-                Card(
+                Surface(
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF222836)),
+                    color = Color(0xFF222836),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Box(
@@ -299,9 +327,9 @@ fun ReportTab(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No workouts recorded yet. Start training today!",
-                            fontSize = 13.sp,
-                            color = Color(0xFF94A3B8)
+                            text = "No completed workouts yet. Start a routine to track your progress!",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 13.sp
                         )
                     }
                 }
@@ -315,8 +343,8 @@ fun ReportTab(
 }
 
 @Composable
-private fun MetricSummaryCard(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+fun MetricSummaryCard(
+    icon: ImageVector,
     iconColor: Color,
     value: String,
     label: String,
@@ -328,22 +356,34 @@ private fun MetricSummaryCard(
         modifier = modifier
     ) {
         Column(
-            modifier = Modifier.padding(14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp)
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = iconColor,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.height(6.dp))
+            Surface(
+                shape = CircleShape,
+                color = iconColor.copy(alpha = 0.15f),
+                modifier = Modifier.size(32.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = label,
+                        tint = iconColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
             Text(
                 text = value,
-                fontSize = 18.sp,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Black,
                 color = Color.White
             )
+
             Text(
                 text = label,
                 fontSize = 11.sp,
@@ -354,16 +394,14 @@ private fun MetricSummaryCard(
 }
 
 @Composable
-private fun HistoryItemCard(item: UserProgressEntity) {
-    val formatter = SimpleDateFormat("MMM dd, yyyy • HH:mm", Locale.getDefault())
-    val dateStr = formatter.format(Date(item.date))
+fun HistoryItemCard(item: UserProgressEntity) {
+    val dateFormat = remember { SimpleDateFormat("MMM d, yyyy • h:mm a", Locale.getDefault()) }
+    val dateString = remember(item.date) { dateFormat.format(Date(item.date)) }
 
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF222836)),
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("history_item_${item.id}")
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
@@ -372,56 +410,64 @@ private fun HistoryItemCard(item: UserProgressEntity) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = item.workoutTitle,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = CircleShape,
+                    color = WorkoutOrange.copy(alpha = 0.2f),
+                    modifier = Modifier.size(42.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.FitnessCenter,
+                            contentDescription = "Workout",
+                            tint = WorkoutOrange,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
 
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.width(14.dp))
 
-                Text(
-                    text = dateStr,
-                    fontSize = 11.sp,
-                    color = Color(0xFF94A3B8)
-                )
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column {
                     Text(
-                        text = "${item.durationSeconds / 60}m ${item.durationSeconds % 60}s",
-                        fontSize = 12.sp,
-                        color = WorkoutOrange,
-                        fontWeight = FontWeight.SemiBold
+                        text = item.workoutTitle,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        fontSize = 15.sp
                     )
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
                     Text(
-                        text = "${item.caloriesBurned} kcal",
-                        fontSize = 12.sp,
-                        color = FitnessRed,
-                        fontWeight = FontWeight.SemiBold
+                        text = dateString,
+                        color = Color(0xFF94A3B8),
+                        fontSize = 11.sp
                     )
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
                     Text(
-                        text = "${item.exercisesCompleted} moves",
-                        fontSize = 12.sp,
+                        text = "${item.exercisesCompleted}/${item.exercisesTotal} exercises • ${item.feelingFeedback}",
                         color = FitnessCyan,
-                        fontWeight = FontWeight.SemiBold
+                        fontSize = 11.sp
                     )
                 }
             }
 
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = WorkoutOrange.copy(alpha = 0.15f)
-            ) {
+            Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = item.feelingFeedback,
+                    text = "${item.caloriesBurned} kcal",
+                    fontWeight = FontWeight.Black,
                     color = WorkoutOrange,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    fontSize = 15.sp
+                )
+
+                val mins = item.durationSeconds / 60
+                val secs = item.durationSeconds % 60
+                Text(
+                    text = "${mins}m ${secs}s",
+                    color = Color(0xFF94A3B8),
+                    fontSize = 11.sp
                 )
             }
         }

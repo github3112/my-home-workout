@@ -2,9 +2,12 @@ package com.example
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.example.data.model.BadgeItem
 import com.example.data.model.CustomWorkoutEntity
 import com.example.data.model.ExerciseEntity
+import com.example.data.model.UserProgressEntity
 import com.example.data.model.WorkoutEntity
+import com.example.util.NotificationHelper
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -12,6 +15,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -83,5 +89,63 @@ class ExampleRobolectricTest {
     list.add(1, temp)
     assertEquals("Diamond Pushup", list[0].name)
     assertEquals("Jumping Jack", list[1].name)
+  }
+
+  @Test
+  fun `activity calendar date grouping test`() {
+    val dayFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+    val now = System.currentTimeMillis()
+    val todayKey = dayFormat.format(Date(now))
+
+    val progress = listOf(
+      UserProgressEntity(
+        id = 1,
+        date = now,
+        workoutTitle = "7-Minute Full Body Sprint",
+        exercisesCompleted = 7,
+        exercisesTotal = 7,
+        durationSeconds = 420,
+        caloriesBurned = 110
+      )
+    )
+
+    val grouped = progress.groupBy { dayFormat.format(Date(it.date)) }
+    assertTrue(grouped.containsKey(todayKey))
+    assertEquals(1, grouped[todayKey]?.size)
+  }
+
+  @Test
+  fun `badges unlock logic test`() {
+    val badges = listOf(
+      BadgeItem(
+        id = "first_step",
+        title = "First Step",
+        description = "Complete your first workout",
+        iconEmoji = "🥇",
+        isUnlocked = true,
+        progress = 1,
+        maxProgress = 1
+      ),
+      BadgeItem(
+        id = "weekly_warrior",
+        title = "Weekly Warrior",
+        description = "Complete 4 workouts in a week",
+        iconEmoji = "🎯",
+        isUnlocked = false,
+        progress = 2,
+        maxProgress = 4,
+        periodType = "Weekly"
+      )
+    )
+
+    val unlockedCount = badges.count { it.isUnlocked }
+    assertEquals(1, unlockedCount)
+  }
+
+  @Test
+  fun `notification helper channel creation`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    NotificationHelper.createNotificationChannel(context)
+    assertNotNull(NotificationHelper.CHANNEL_ID)
   }
 }

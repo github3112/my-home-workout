@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.local.AppDatabase
+import com.example.data.model.BadgeItem
 import com.example.data.model.CustomWorkoutEntity
 import com.example.data.model.ExerciseEntity
 import com.example.data.model.MealPlanItem
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -137,6 +139,119 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     val countdownSetting = MutableStateFlow(5)
     val userWeightKg = MutableStateFlow(68.0f)
     val userHeightCm = MutableStateFlow(175.0f)
+
+    // Badges & Achievements
+    val badges: StateFlow<List<BadgeItem>> = allProgress.map { progressList ->
+        val totalCount = progressList.size
+        val totalSecs = progressList.sumOf { it.durationSeconds }
+        val hasPushUpMaster = progressList.any { it.workoutTitle.contains("Push-Up", ignoreCase = true) }
+        val now = System.currentTimeMillis()
+        val weekMillis = 7 * 86400000L
+        val monthMillis = 30 * 86400000L
+        val weekCount = progressList.count { now - it.date <= weekMillis }
+        val monthCount = progressList.count { now - it.date <= monthMillis }
+
+        listOf(
+            BadgeItem(
+                id = "first_step",
+                title = "First Step",
+                description = "Complete your first workout",
+                iconEmoji = "🥇",
+                isUnlocked = totalCount >= 1,
+                progress = totalCount.coerceAtMost(1),
+                maxProgress = 1
+            ),
+            BadgeItem(
+                id = "fire_starter",
+                title = "Fire Starter",
+                description = "Complete 3 workouts",
+                iconEmoji = "🔥",
+                isUnlocked = totalCount >= 3,
+                progress = totalCount.coerceAtMost(3),
+                maxProgress = 3
+            ),
+            BadgeItem(
+                id = "weekly_warrior",
+                title = "Weekly Warrior",
+                description = "Complete 4 workouts in a week",
+                iconEmoji = "🎯",
+                isUnlocked = weekCount >= 4,
+                progress = weekCount.coerceAtMost(4),
+                maxProgress = 4,
+                periodType = "Weekly"
+            ),
+            BadgeItem(
+                id = "pushup_master",
+                title = "Push-Up Master",
+                description = "Conquer the 13-exercise Push-Up Challenge",
+                iconEmoji = "🛡️",
+                isUnlocked = hasPushUpMaster,
+                progress = if (hasPushUpMaster) 1 else 0,
+                maxProgress = 1
+            ),
+            BadgeItem(
+                id = "monthly_titan",
+                title = "Monthly Titan",
+                description = "Complete 10 workouts in a month",
+                iconEmoji = "🌟",
+                isUnlocked = monthCount >= 10,
+                progress = monthCount.coerceAtMost(10),
+                maxProgress = 10,
+                periodType = "Monthly"
+            ),
+            BadgeItem(
+                id = "endurance_beast",
+                title = "Endurance Beast",
+                description = "Accumulate 15+ minutes of training",
+                iconEmoji = "⏱️",
+                isUnlocked = totalSecs >= 900,
+                progress = (totalSecs / 60).coerceAtMost(15),
+                maxProgress = 15
+            ),
+            BadgeItem(
+                id = "hydration_hero",
+                title = "Hydration Hero",
+                description = "Drink 8 glasses of water in a day",
+                iconEmoji = "💧",
+                isUnlocked = waterGlasses.value >= 8,
+                progress = waterGlasses.value.coerceAtMost(8),
+                maxProgress = 8
+            ),
+            BadgeItem(
+                id = "consistency_streak",
+                title = "Century Burner",
+                description = "Burn 200+ total calories",
+                iconEmoji = "⚡",
+                isUnlocked = (progressList.sumOf { it.caloriesBurned }) >= 200,
+                progress = progressList.sumOf { it.caloriesBurned }.coerceAtMost(200),
+                maxProgress = 200
+            )
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val weeklyWorkoutsCount: StateFlow<Int> = allProgress.map { list ->
+        val weekMillis = 7 * 86400000L
+        val now = System.currentTimeMillis()
+        list.count { now - it.date <= weekMillis }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 2)
+
+    val monthlyWorkoutsCount: StateFlow<Int> = allProgress.map { list ->
+        val monthMillis = 30 * 86400000L
+        val now = System.currentTimeMillis()
+        list.count { now - it.date <= monthMillis }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 2)
+
+    val weeklyCalories: StateFlow<Int> = allProgress.map { list ->
+        val weekMillis = 7 * 86400000L
+        val now = System.currentTimeMillis()
+        list.filter { now - it.date <= weekMillis }.sumOf { it.caloriesBurned }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 195)
+
+    val monthlyCalories: StateFlow<Int> = allProgress.map { list ->
+        val monthMillis = 30 * 86400000L
+        val now = System.currentTimeMillis()
+        list.filter { now - it.date <= monthMillis }.sumOf { it.caloriesBurned }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 195)
 
     // Player Timer Job
     private var timerJob: Job? = null
