@@ -1,0 +1,6 @@
+{
+  "name": "Home Workout",
+  "description": "Offline personal home workout app with bodyweight plans, animated exercise guides, rest timers, meal tracking, and stats.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
